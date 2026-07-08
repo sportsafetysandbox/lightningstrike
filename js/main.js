@@ -28,7 +28,7 @@ const el = {
 
 let lightningMap = null;
 let events = [];
-let plottedIds = new Set();
+let plotted = new Map(); // event index -> { marker, row }
 let windowStart = null;
 let playTimer = null;
 let rateIndex = 0;
@@ -47,7 +47,7 @@ el.toggleC2G.addEventListener("change", () => {
   toggleLayer(lightningMap?.c2gLayer, el.toggleC2G.checked);
 });
 el.slider.addEventListener("input", () => {
-  plotUpToStep(Number(el.slider.value));
+  syncToStep(Number(el.slider.value));
 });
 el.playBtn.addEventListener("click", togglePlay);
 el.ffBtn.addEventListener("click", cycleRate);
@@ -117,10 +117,10 @@ async function onSubmit(e) {
       .filter((r) => r.distanceKm <= 6)
       .sort((a, b) => a.time - b.time);
 
+    plotted = new Map();
+    clearTables();
     setupMap(lat, lon);
     setupTimeline(start, end);
-    clearTables();
-    plottedIds = new Set();
 
     setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 6km of the given location.`);
   } catch (err) {
@@ -156,7 +156,7 @@ function setupTimeline(start, end) {
   rateIndex = 0;
   el.ffBtn.textContent = `⏭ x${RATE_CYCLE[rateIndex]}`;
   updateReadout(0);
-  plotUpToStep(0);
+  syncToStep(0);
 }
 
 function stepToTime(step) {
@@ -167,18 +167,24 @@ function updateReadout(step) {
   el.readout.textContent = formatSgtDisplay(stepToTime(step));
 }
 
-function plotUpToStep(step) {
+// Adds markers/rows for events now within [windowStart, t], and removes ones
+// that were plotted but are now after t (i.e. the slider scrubbed back past them).
+function syncToStep(step) {
   updateReadout(step);
   const t = stepToTime(step);
   events.forEach((event, idx) => {
-    if (plottedIds.has(idx) || event.time > t) return;
-    plottedIds.add(idx);
-    if (event.type === "C2C") {
-      lightningMap.plotC2C({ ...event, displayTime: formatSgtDisplay(event.time) });
-      addRow(el.c2cBody, event);
-    } else {
-      lightningMap.plotC2G({ ...event, displayTime: formatSgtDisplay(event.time) });
-      addRow(el.c2gBody, event);
+    const visible = event.time <= t;
+    const existing = plotted.get(idx);
+    if (visible && !existing) {
+      const marker = event.type === "C2C"
+        ? lightningMap.plotC2C({ ...event, displayTime: formatSgtDisplay(event.time) })
+        : lightningMap.plotC2G({ ...event, displayTime: formatSgtDisplay(event.time) });
+      const row = addRow(event.type === "C2C" ? el.c2cBody : el.c2gBody, event);
+      plotted.set(idx, { marker, row });
+    } else if (!visible && existing) {
+      existing.marker.remove();
+      existing.row.remove();
+      plotted.delete(idx);
     }
   });
 }
@@ -188,6 +194,7 @@ function addRow(tbody, event) {
   tr.innerHTML = `<td>${event.lat.toFixed(4)}</td><td>${event.lon.toFixed(4)}</td>` +
     `<td>${formatSgtDisplay(event.time)}</td><td>${event.distanceKm.toFixed(2)}</td>`;
   tbody.appendChild(tr);
+  return tr;
 }
 
 function clearTables() {
@@ -206,10 +213,7 @@ function togglePlay() {
 function startPlay() {
   if (Number(el.slider.value) >= Number(el.slider.max)) {
     el.slider.value = "0";
-    plottedIds = new Set();
-    clearTables();
-    lightningMap.clearMarkers();
-    plotUpToStep(0);
+    syncToStep(0);
   }
   el.playBtn.innerHTML = "&#9208; Pause";
   playTimer = setInterval(() => {
@@ -217,11 +221,11 @@ function startPlay() {
     const max = Number(el.slider.max);
     if (next >= max) {
       el.slider.value = String(max);
-      plotUpToStep(max);
+      syncToStep(max);
       stopPlay();
     } else {
       el.slider.value = String(next);
-      plotUpToStep(next);
+      syncToStep(next);
     }
   }, 1000);
 }

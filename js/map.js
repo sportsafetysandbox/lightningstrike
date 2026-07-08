@@ -59,20 +59,15 @@ export function createLightningMap(containerId, centerLat, centerLon) {
   const c2gIcon = boltIcon("#ffd700");
 
   function plotC2C(event) {
-    L.marker([event.lat, event.lon], { icon: c2cIcon }).addTo(c2cLayer).bindPopup(
+    return L.marker([event.lat, event.lon], { icon: c2cIcon }).addTo(c2cLayer).bindPopup(
       `Cloud to Cloud<br>${event.displayTime}<br>${event.distanceKm.toFixed(2)} km away`
     );
   }
 
   function plotC2G(event) {
-    L.marker([event.lat, event.lon], { icon: c2gIcon }).addTo(c2gLayer).bindPopup(
+    return L.marker([event.lat, event.lon], { icon: c2gIcon }).addTo(c2gLayer).bindPopup(
       `Cloud to Ground<br>${event.displayTime}<br>${event.distanceKm.toFixed(2)} km away`
     );
-  }
-
-  function clearMarkers() {
-    c2cLayer.clearLayers();
-    c2gLayer.clearLayers();
   }
 
   return {
@@ -82,6 +77,5 @@ export function createLightningMap(containerId, centerLat, centerLon) {
     c2gLayer,
     plotC2C,
     plotC2G,
-    clearMarkers,
   };
 }
