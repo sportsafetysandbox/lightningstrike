@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lightning Strike Simulation</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+  <h1>Lightning Strike Simulation</h1>
+  <p class="subtitle">C2C / C2G lightning occurrences within 6km of a given location, NEA data via data.gov.sg</p>
+</header>
+
+<main>
+  <section class="controls-panel">
+    <form id="query-form">
+      <fieldset>
+        <legend>Given Location</legend>
+        <label>Latitude
+          <input type="text" id="lat" inputmode="decimal" placeholder="1.3521" required />
+        </label>
+        <label>Longitude
+          <input type="text" id="lon" inputmode="decimal" placeholder="103.8198" required />
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Start</legend>
+        <label>Date (dd/mm/yy)
+          <input type="text" id="start-date" placeholder="dd/mm/yy" pattern="\d{2}/\d{2}/\d{2}" required />
+        </label>
+        <label>Time (xxxx hrs)
+          <input type="text" id="start-time" placeholder="1430" pattern="\d{4}" required />
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>End</legend>
+        <label>Date (dd/mm/yy)
+          <input type="text" id="end-date" placeholder="dd/mm/yy" pattern="\d{2}/\d{2}/\d{2}" required />
+        </label>
+        <label>Time (xxxx hrs)
+          <input type="text" id="end-time" placeholder="1630" pattern="\d{4}" required />
+        </label>
+      </fieldset>
+
+      <div class="form-actions">
+        <button type="submit" id="load-btn">Load Data</button>
+        <button type="button" id="refresh-btn">Refresh</button>
+      </div>
+    </form>
+    <p id="status" role="status"></p>
+
+    <fieldset class="overlay-toggles">
+      <legend>Overlays</legend>
+      <label><input type="checkbox" id="toggle-circles" checked /> Concentric Circles (2km)</label>
+      <label><input type="checkbox" id="toggle-c2c" checked /> Cloud-to-Cloud (white)</label>
+      <label><input type="checkbox" id="toggle-c2g" checked /> Cloud-to-Ground (yellow)</label>
+    </fieldset>
+  </section>
+
+  <section class="map-panel">
+    <div id="map"></div>
+    <div class="timeline">
+      <input type="range" id="time-slider" min="0" max="0" value="0" step="1" disabled />
+      <div class="timeline-readout" id="time-readout">—</div>
+      <div class="transport-controls">
+        <button type="button" id="play-btn" disabled>&#9654; Play</button>
+        <button type="button" id="ff-btn" disabled>&#9197; x1</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="tables-panel">
+    <div class="table-wrap">
+      <h2>Table 1 — Cloud to Cloud History</h2>
+      <table id="c2c-table">
+        <thead><tr><th>Lat</th><th>Long</th><th>Time</th><th>Distance (km)</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="table-wrap">
+      <h2>Table 2 — Cloud to Ground History</h2>
+      <table id="c2g-table">
+        <thead><tr><th>Lat</th><th>Long</th><th>Time</th><th>Distance (km)</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
