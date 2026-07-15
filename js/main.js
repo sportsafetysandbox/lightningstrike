@@ -123,7 +123,7 @@ async function onSubmit(e) {
 
     events = raw
       .map((r) => ({ ...r, distanceKm: haversineKm(lat, lon, r.lat, r.lon) }))
-      .filter((r) => r.distanceKm <= 10)
+      .filter((r) => r.distanceKm <= 12)
       .sort((a, b) => a.time - b.time);
 
     plotted = new Map();
@@ -134,22 +134,22 @@ async function onSubmit(e) {
     setupMap(lat, lon);
     setupTimeline(start, end);
 
-    setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 10km of the given location.`);
+    setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 12km of the given location.`);
 
     try {
       const { areaMetadata, snapshots } = await fetchTwoHrForecastWindow(start, end, ({ done, total }) => {
-        setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 10km. Loading cloud cover… (${done}/${total})`);
+        setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 12km. Loading cloud cover… (${done}/${total})`);
       });
       forecastAreaMetadata = areaMetadata;
       forecastSnapshots = snapshots;
       activeForecastIssuedAt = null;
       syncToStep(Number(el.slider.value));
-      setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 10km of the given location.`);
+      setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 12km of the given location.`);
     } catch (forecastErr) {
       console.error(forecastErr);
       forecastAreaMetadata = [];
       forecastSnapshots = [];
-      setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 10km. Cloud cover unavailable: ${forecastErr.message}`, true);
+      setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 12km. Cloud cover unavailable: ${forecastErr.message}`, true);
     }
   } catch (err) {
     console.error(err);
