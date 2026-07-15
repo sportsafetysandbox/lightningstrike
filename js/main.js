@@ -1,4 +1,4 @@
-import { haversineKm } from "./geo.js";
+import { haversineKm, parseLatLon } from "./geo.js";
 import { fetchLightningWindow, parseSgtInput, formatSgtDisplay } from "./neaApi.js";
 import { createLightningMap } from "./map.js";
 
@@ -7,8 +7,7 @@ const RATE_CYCLE = [1, 2, 4];
 
 const el = {
   form: document.getElementById("query-form"),
-  lat: document.getElementById("lat"),
-  lon: document.getElementById("lon"),
+  location: document.getElementById("location"),
   startDate: document.getElementById("start-date"),
   startTime: document.getElementById("start-time"),
   endDate: document.getElementById("end-date"),
@@ -62,20 +61,13 @@ function restoreLocationFromRefresh() {
   const saved = sessionStorage.getItem("lightning-location");
   if (!saved) return;
   sessionStorage.removeItem("lightning-location");
-  try {
-    const { lat, lon } = JSON.parse(saved);
-    el.lat.value = lat;
-    el.lon.value = lon;
-  } catch {
-    // ignore malformed storage
-  }
+  el.location.value = saved;
 }
 
 function onRefresh() {
-  const lat = el.lat.value.trim();
-  const lon = el.lon.value.trim();
-  if (lat && lon) {
-    sessionStorage.setItem("lightning-location", JSON.stringify({ lat, lon }));
+  const value = el.location.value.trim();
+  if (value) {
+    sessionStorage.setItem("lightning-location", value);
   }
   location.reload();
 }
@@ -84,12 +76,12 @@ async function onSubmit(e) {
   e.preventDefault();
   stopPlay();
 
-  const lat = Number(el.lat.value);
-  const lon = Number(el.lon.value);
-  if (Number.isNaN(lat) || Number.isNaN(lon)) {
-    setStatus("Please enter a valid latitude and longitude.", true);
+  const coords = parseLatLon(el.location.value);
+  if (!coords) {
+    setStatus("Please enter a valid “lat, lon” pair (e.g. pasted from Google Maps).", true);
     return;
   }
+  const { lat, lon } = coords;
 
   const start = parseSgtInput(el.startDate.value, el.startTime.value);
   const end = parseSgtInput(el.endDate.value, el.endTime.value);
@@ -114,7 +106,7 @@ async function onSubmit(e) {
 
     events = raw
       .map((r) => ({ ...r, distanceKm: haversineKm(lat, lon, r.lat, r.lon) }))
-      .filter((r) => r.distanceKm <= 6)
+      .filter((r) => r.distanceKm <= 10)
       .sort((a, b) => a.time - b.time);
 
     plotted = new Map();
@@ -122,7 +114,7 @@ async function onSubmit(e) {
     setupMap(lat, lon);
     setupTimeline(start, end);
 
-    setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 6km of the given location.`);
+    setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 10km of the given location.`);
   } catch (err) {
     console.error(err);
     setStatus(`Error: ${err.message}`, true);
