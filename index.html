@@ -10,7 +10,7 @@
 <body>
 <header>
   <h1>Lightning Strike Simulation</h1>
-  <p class="subtitle">C2C / C2G lightning occurrences within 6km of a given location, NEA data via data.gov.sg</p>
+  <p class="subtitle">C2C / C2G lightning occurrences within 10km of a given location, NEA data via data.gov.sg</p>
 </header>
 
 <main>
@@ -18,11 +18,8 @@
     <form id="query-form">
       <fieldset>
         <legend>Given Location</legend>
-        <label>Latitude
-          <input type="text" id="lat" inputmode="decimal" placeholder="1.3521" required />
-        </label>
-        <label>Longitude
-          <input type="text" id="lon" inputmode="decimal" placeholder="103.8198" required />
+        <label>Latitude, Longitude
+          <input type="text" id="location" placeholder="1.3521, 103.8198" required />
         </label>
       </fieldset>
 
