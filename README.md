@@ -3,7 +3,7 @@ Show location of lightning strikes in Singapore, within a given location radius,
 
 ### Version 1
 
-A lightning simulation app that allows me to visually display the locations of cloud-to-cloud (C2C) and cloud-to-ground (C2G) lightning occurrences within 10km radius of a given location, over a given Date and Time Window.
+A lightning simulation app that allows me to visually display the locations of cloud-to-cloud (C2C) and cloud-to-ground (C2G) lightning occurrences within 12km radius of a given location, over a given Date and Time Window.
 
 Hosting Location:
 
@@ -21,11 +21,11 @@ User Input:
 
 Visual Display:
 
-- Base Map: **24 km** by **24km** map Square with **Given Location** in the **centre.**
+- Base Map: **28 km** by **28km** map Square with **Given Location** in the **centre.**
 - Map Pin: Indicating the **Given Location**.
 - Table 1: Cloud to Cloud History (Lat, Long, Time, Distance from Given Location)
 - Table 2: Cloud to Ground History (Lat, Long, Time, Distance from Given Location)
-- Overlay 1 (with toggle): **Concentric Circles** in Red (**2km** intervals, up to **10km**) with the **Given Location** as its **centre**.
+- Overlay 1 (with toggle): **Concentric Circles** in Red (**2km** intervals, up to **8km**) with the **Given Location** as its **centre**.
 - Overlay 2 (with toggle): **Cloud-to-Cloud Lightning** locations indicated by white lightning icons. Leave the icons in place after plotting - do not remove after plotting.
 - Overlay 3 (with toggle): **Cloud-to-Ground Lightning** locations indicated by yellow lightning icons. Leave the icons in place after plotting - do not remove after plotting.
 - Time Slider: From Time Window Start to Time Window End. Allows me to slide manually back and forth
