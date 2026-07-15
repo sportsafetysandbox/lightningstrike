@@ -1,9 +1,9 @@
 import { squareBoundsKm } from "./geo.js";
 import { classifyForecast } from "./forecastColors.js";
 
-const HALF_SQUARE_KM = 12; // 24km x 24km square, given location at centre
+const HALF_SQUARE_KM = 14; // 28km x 28km square, given location at centre
 const CIRCLE_INTERVAL_KM = 2;
-const CIRCLE_MAX_KM = 10;
+const CIRCLE_MAX_KM = 8;
 
 function boltIcon(color) {
   const svg = `
