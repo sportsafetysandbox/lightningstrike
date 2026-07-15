@@ -178,6 +178,21 @@ th { color: var(--muted); position: sticky; top: 0; background: var(--panel); }
 
 .bolt-icon { filter: drop-shadow(0 0 2px rgba(0,0,0,0.9)); }
 
+.cloud-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+.cloud-legend-swatch {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 @media (max-width: 900px) {
   main { grid-template-columns: 1fr; }
   .controls-panel { grid-row: 1; grid-column: 1; }
