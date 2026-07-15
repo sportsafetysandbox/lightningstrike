@@ -1,8 +1,8 @@
 import { squareBoundsKm } from "./geo.js";
 
-const HALF_SQUARE_KM = 7; // 14km x 14km square, given location at centre
+const HALF_SQUARE_KM = 12; // 24km x 24km square, given location at centre
 const CIRCLE_INTERVAL_KM = 2;
-const CIRCLE_MAX_KM = 6;
+const CIRCLE_MAX_KM = 10;
 
 function boltIcon(color) {
   const svg = `
