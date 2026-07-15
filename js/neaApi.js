@@ -1,6 +1,10 @@
 const API_URL = "https://api-open.data.gov.sg/v2/real-time/api/weather";
+const FORECAST_API_URL = "https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast";
 const SGT_OFFSET_MS = 8 * 60 * 60 * 1000;
 const MAX_PAGES = 1000; // safety cap (~35 days at 25 records/2min per page)
+const FORECAST_BUCKET_MINUTES = 30; // NEA issues a new 2-hr nowcast every 30 min
+const MAX_FORECAST_BUCKETS = 300; // ~6.25 days of 30-min buckets; keeps request count sane
+const FORECAST_CONCURRENCY = 8;
 
 // Parse a dd/mm/yy date + 4-digit 24h time string as Singapore local time,
 // returning a real epoch-based Date regardless of the browser's own timezone.
@@ -97,4 +101,79 @@ export async function fetchLightningWindow(startDate, endDate, onProgress) {
 
   readings.sort((a, b) => a.time - b.time);
   return readings;
+}
+
+async function fetchForecastAt(date, attempt = 0) {
+  const url = new URL(FORECAST_API_URL);
+  url.searchParams.set("date", formatSgtParam(date));
+
+  const res = await fetch(url.toString());
+  if (res.status === 429 && attempt < 3) {
+    await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+    return fetchForecastAt(date, attempt + 1);
+  }
+  if (!res.ok) {
+    throw new Error(`NEA 2-hr Nowcast request failed (${res.status})`);
+  }
+  const body = await res.json();
+  if (body.code !== 0) {
+    throw new Error(body.errorMsg || "NEA 2-hr Nowcast API returned an error");
+  }
+  return body.data;
+}
+
+// Fetches 2-hr Nowcast (cloud cover / sky condition) snapshots covering [startDate, endDate],
+// one request per 30-minute issuance bucket (NEA's native cadence for this forecast). Returns
+// { areaMetadata, snapshots } where snapshots is sorted ascending by issuedAt and de-duplicated
+// (adjacent buckets often resolve to the same issuance).
+export async function fetchTwoHrForecastWindow(startDate, endDate, onProgress) {
+  const bucketMs = FORECAST_BUCKET_MINUTES * 60 * 1000;
+  const firstBucket = Math.floor(startDate.getTime() / bucketMs) * bucketMs;
+  const lastBucket = Math.ceil(endDate.getTime() / bucketMs) * bucketMs;
+
+  const bucketTimes = [];
+  for (let t = firstBucket; t <= lastBucket; t += bucketMs) bucketTimes.push(t);
+
+  if (bucketTimes.length > MAX_FORECAST_BUCKETS) {
+    throw new Error(
+      `Time window too large for cloud cover (would need ${bucketTimes.length} requests, max ${MAX_FORECAST_BUCKETS} ≈ ${Math.floor((MAX_FORECAST_BUCKETS * FORECAST_BUCKET_MINUTES) / 60 / 24)} days). Try a shorter window.`
+    );
+  }
+
+  const results = new Array(bucketTimes.length);
+  let done = 0;
+  let nextIdx = 0;
+  async function worker() {
+    while (nextIdx < bucketTimes.length) {
+      const my = nextIdx++;
+      results[my] = await fetchForecastAt(new Date(bucketTimes[my]));
+      done += 1;
+      onProgress?.({ done, total: bucketTimes.length });
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(FORECAST_CONCURRENCY, bucketTimes.length) }, worker)
+  );
+
+  const seenIssuance = new Set();
+  const snapshots = [];
+  let areaMetadata = null;
+  for (const data of results) {
+    if (!data) continue;
+    if (!areaMetadata) areaMetadata = data.area_metadata ?? [];
+    const item = data.items?.[0];
+    if (!item) continue;
+    if (seenIssuance.has(item.timestamp)) continue;
+    seenIssuance.add(item.timestamp);
+
+    snapshots.push({
+      issuedAt: new Date(item.timestamp),
+      validStart: new Date(item.valid_period.start),
+      validEnd: new Date(item.valid_period.end),
+      forecasts: item.forecasts ?? [],
+    });
+  }
+
+  snapshots.sort((a, b) => a.issuedAt - b.issuedAt);
+  return { areaMetadata: areaMetadata ?? [], snapshots };
 }
