@@ -1,6 +1,7 @@
 import { haversineKm, parseLatLon } from "./geo.js";
-import { fetchLightningWindow, parseSgtInput, formatSgtDisplay } from "./neaApi.js";
+import { fetchLightningWindow, fetchTwoHrForecastWindow, parseSgtInput, formatSgtDisplay } from "./neaApi.js";
 import { createLightningMap } from "./map.js";
+import { FORECAST_LEGEND } from "./forecastColors.js";
 
 const STEP_MINUTES = 2; // matches NEA's native reading cadence
 const RATE_CYCLE = [1, 2, 4];
@@ -17,6 +18,8 @@ const el = {
   toggleCircles: document.getElementById("toggle-circles"),
   toggleC2C: document.getElementById("toggle-c2c"),
   toggleC2G: document.getElementById("toggle-c2g"),
+  toggleCloud: document.getElementById("toggle-cloud"),
+  cloudLegendItems: document.getElementById("cloud-legend-items"),
   slider: document.getElementById("time-slider"),
   readout: document.getElementById("time-readout"),
   playBtn: document.getElementById("play-btn"),
@@ -31,7 +34,11 @@ let plotted = new Map(); // event index -> { marker, row }
 let windowStart = null;
 let playTimer = null;
 let rateIndex = 0;
+let forecastAreaMetadata = [];
+let forecastSnapshots = [];
+let activeForecastIssuedAt = null;
 
+renderCloudLegend();
 restoreLocationFromRefresh();
 
 el.form.addEventListener("submit", onSubmit);
@@ -45,11 +52,21 @@ el.toggleC2C.addEventListener("change", () => {
 el.toggleC2G.addEventListener("change", () => {
   toggleLayer(lightningMap?.c2gLayer, el.toggleC2G.checked);
 });
+el.toggleCloud.addEventListener("change", () => {
+  toggleLayer(lightningMap?.forecastLayer, el.toggleCloud.checked);
+});
 el.slider.addEventListener("input", () => {
   syncToStep(Number(el.slider.value));
 });
 el.playBtn.addEventListener("click", togglePlay);
 el.ffBtn.addEventListener("click", cycleRate);
+
+function renderCloudLegend() {
+  el.cloudLegendItems.innerHTML = FORECAST_LEGEND.map(
+    ({ label, color }) =>
+      `<div class="cloud-legend-item"><span class="cloud-legend-swatch" style="background:${color}"></span>${label}</div>`
+  ).join("");
+}
 
 function toggleLayer(layer, show) {
   if (!layer || !lightningMap) return;
@@ -111,10 +128,29 @@ async function onSubmit(e) {
 
     plotted = new Map();
     clearTables();
+    forecastAreaMetadata = [];
+    forecastSnapshots = [];
+    activeForecastIssuedAt = null;
     setupMap(lat, lon);
     setupTimeline(start, end);
 
     setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 10km of the given location.`);
+
+    try {
+      const { areaMetadata, snapshots } = await fetchTwoHrForecastWindow(start, end, ({ done, total }) => {
+        setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 10km. Loading cloud cover… (${done}/${total})`);
+      });
+      forecastAreaMetadata = areaMetadata;
+      forecastSnapshots = snapshots;
+      activeForecastIssuedAt = null;
+      syncToStep(Number(el.slider.value));
+      setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 10km of the given location.`);
+    } catch (forecastErr) {
+      console.error(forecastErr);
+      forecastAreaMetadata = [];
+      forecastSnapshots = [];
+      setStatus(`${events.length} strike${events.length === 1 ? "" : "s"} within 10km. Cloud cover unavailable: ${forecastErr.message}`, true);
+    }
   } catch (err) {
     console.error(err);
     setStatus(`Error: ${err.message}`, true);
@@ -134,6 +170,7 @@ function setupMap(lat, lon) {
   toggleLayer(lightningMap.circleLayer, el.toggleCircles.checked);
   toggleLayer(lightningMap.c2cLayer, el.toggleC2C.checked);
   toggleLayer(lightningMap.c2gLayer, el.toggleC2G.checked);
+  toggleLayer(lightningMap.forecastLayer, el.toggleCloud.checked);
 }
 
 function setupTimeline(start, end) {
@@ -164,6 +201,7 @@ function updateReadout(step) {
 function syncToStep(step) {
   updateReadout(step);
   const t = stepToTime(step);
+  applyForecastForTime(t);
   events.forEach((event, idx) => {
     const visible = event.time <= t;
     const existing = plotted.get(idx);
@@ -179,6 +217,26 @@ function syncToStep(step) {
       plotted.delete(idx);
     }
   });
+}
+
+// Picks the most recent forecast snapshot issued at or before time `t` and
+// (re)draws the cloud cover layer, but only when the active snapshot actually
+// changes — avoids redrawing/reopening popups on every 2-min slider step when
+// the forecast (issued every 30 min) hasn't moved on.
+function applyForecastForTime(t) {
+  if (!lightningMap || forecastSnapshots.length === 0) return;
+  let candidate = null;
+  for (const snap of forecastSnapshots) {
+    if (snap.issuedAt <= t) candidate = snap;
+    else break;
+  }
+  candidate = candidate ?? forecastSnapshots[0];
+  if (candidate.issuedAt.getTime() === activeForecastIssuedAt) return;
+  activeForecastIssuedAt = candidate.issuedAt.getTime();
+  lightningMap.setForecastAreas(
+    { ...candidate, issuedLabel: formatSgtDisplay(candidate.issuedAt) },
+    forecastAreaMetadata
+  );
 }
 
 function addRow(tbody, event) {
