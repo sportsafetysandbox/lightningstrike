@@ -1,4 +1,5 @@
 import { squareBoundsKm } from "./geo.js";
+import { classifyForecast } from "./forecastColors.js";
 
 const HALF_SQUARE_KM = 12; // 24km x 24km square, given location at centre
 const CIRCLE_INTERVAL_KM = 2;
@@ -58,6 +59,36 @@ export function createLightningMap(containerId, centerLat, centerLon) {
   const c2cIcon = boltIcon("#ffffff");
   const c2gIcon = boltIcon("#ffd700");
 
+  const forecastLayer = L.layerGroup();
+  const AREA_RADIUS_M = 2200;
+
+  // Draws one circle per forecast area whose label falls within the base map
+  // square, colour-coded by classifyForecast. Replaces whatever was drawn for
+  // the previous snapshot.
+  function setForecastAreas(snapshot, areaMetadata) {
+    forecastLayer.clearLayers();
+    if (!snapshot) return;
+
+    const locByArea = new Map(areaMetadata.map((a) => [a.name, a.label_location]));
+    snapshot.forecasts.forEach(({ area, forecast }) => {
+      const loc = locByArea.get(area);
+      if (!loc) return;
+      if (loc.latitude < box.south || loc.latitude > box.north || loc.longitude < box.west || loc.longitude > box.east) {
+        return;
+      }
+      const info = classifyForecast(forecast);
+      L.circle([loc.latitude, loc.longitude], {
+        radius: AREA_RADIUS_M,
+        color: info.color,
+        weight: 1,
+        fillColor: info.color,
+        fillOpacity: 0.25,
+      })
+        .addTo(forecastLayer)
+        .bindPopup(`<strong>${area}</strong><br>${forecast}<br>Issued ${snapshot.issuedLabel ?? ""}`);
+    });
+  }
+
   function plotC2C(event) {
     return L.marker([event.lat, event.lon], { icon: c2cIcon }).addTo(c2cLayer).bindPopup(
       `Cloud to Cloud<br>${event.displayTime}<br>${event.distanceKm.toFixed(2)} km away`
@@ -75,7 +106,9 @@ export function createLightningMap(containerId, centerLat, centerLon) {
     circleLayer,
     c2cLayer,
     c2gLayer,
+    forecastLayer,
     plotC2C,
     plotC2G,
+    setForecastAreas,
   };
 }
